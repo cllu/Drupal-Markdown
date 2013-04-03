@@ -113,8 +113,11 @@ And now some code:
  */
 function _filter_markdown($text, $format) {
   if (!empty($text)) {
-    module_load_include('php', 'markdown', 'markdown');
-    $text = Markdown($text);
+    //module_load_include('php', 'markdown', 'markdown');
+    //$text = Markdown($text);
+    module_load_include('php', 'markdown', 'Michelf/Markdown');
+    module_load_include('php', 'markdown', 'Michelf/MarkdownExtra');
+    $text = MarkdownExtra::defaultTransform($text);
   }
 
   return $text;

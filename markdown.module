@@ -116,7 +116,9 @@ function _filter_markdown($text, $format) {
   if (!empty($text)) {
     module_load_include('php', 'markdown', 'Michelf/Markdown');
     module_load_include('php', 'markdown', 'Michelf/MarkdownExtra');
+    module_load_include('php', 'markdown', 'smartypants');
     $text = MarkdownExtra::defaultTransform($text);
+    $text = SmartyPants($text);
   }
 
   return $text;
@@ -144,3 +146,41 @@ function _filter_markdown_settings($form, &$form_state, $filter, $format, $defau
 
   return $settings;
 }
+
+/*
+function markdown_node_load($nodes, $types) {
+    include('Spyc.php');
+    foreach ($nodes as $node) {
+        if (preg_match("/^---(?P<yaml>(.|\n)*)---/", $node->body[$node->language][0]['value'], $matches) == 1) {
+            //print_r($matches);
+            $node->yaml = Spyc::YAMLLoad($matches['yaml']);
+            //print_r($yaml);
+            //print_r($yaml['private']);
+            //print_r(Spyc::YAMLDump($yaml));
+        } else {
+            $node->yaml = array();
+        }
+
+        // set private value
+        if (array_key_exists('private', $node->yaml) && $node->yaml['private']) {
+            $node->private = TRUE;
+        } else {
+            $node->private = FALSE;
+        }
+        //print_r($node);
+        //drupal_exit();
+        //$node->private = TRUE;
+        //$node->mathjax = FALSE;
+    }
+}
+
+function markdown_node_access($node, $op, $account) {
+    $type = is_string($node) ? $node : $node->type;
+    
+    if (in_array($type, array('blog', 'quote', 'favorite')) && !$node->private) {
+        return NODE_ACCESS_ALLOW;
+    }
+
+    return NODE_ACCESS_DENY;
+}
+*/

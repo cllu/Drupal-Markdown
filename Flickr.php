@@ -10,7 +10,7 @@ class Flickr {
         private $f = null;
 
     function __construct() {
-        $this->f =& new phpFlickr($this->api_key, $this->api_secret);
+        $this->f = new phpFlickr($this->api_key, $this->api_secret);
         $this->f->setToken($this->api_token);
     }
 

@@ -117,6 +117,22 @@ function _filter_markdown($text, $format) {
     module_load_include('php', 'markdown', 'Michelf/Markdown');
     module_load_include('php', 'markdown', 'Michelf/MarkdownExtra');
     module_load_include('php', 'markdown', 'smartypants');
+    module_load_include('php', 'markdown', 'Flickr');
+
+    // yaml header
+    if (preg_match("/^---(?P<yaml>(.|\n)*)---/", $text, $matches) == 1) {
+        $yaml = $matches['yaml'];
+        $text = substr($text, strlen($matches[0]));
+    }
+    // replace flickr image url
+    //$text = preg_replace('/   /', '', $text);
+    $flickr = new Flickr();
+    preg_match_all('/\{\{flickr:(?P<photo_id>\d+)(\|(?P<size>\w+))?\}\}/', $text, $matches, PREG_SET_ORDER);
+    foreach ($matches as $match) {
+        $photo_url = $flickr->get_photo_url($match['photo_id'], $match['size']);
+        $text = str_replace($match[0], $photo_url, $text);
+    }
+    // markdown
     $text = MarkdownExtra::defaultTransform($text);
     $text = SmartyPants($text);
   }

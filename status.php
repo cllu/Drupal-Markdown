@@ -1,0 +1,68 @@
+<?php
+
+$hostname = '{imap.gmail.com:993/imap/ssl}INBOX';
+$username = 'status@chunliang.me';
+$password = '%E9V7md3';
+
+define('DRUPAL_ROOT', '/var/www/chunliang.me/drupal/');
+$_SERVER['REMOTE_ADDR'] = 'localhost';
+chdir(DRUPAL_ROOT);
+require_once DRUPAL_ROOT . '/includes/bootstrap.inc';
+drupal_bootstrap(DRUPAL_BOOTSTRAP_FULL);
+
+function add_status($email_number, $created, $body) {
+    $node = new stdClass();
+    $node->type = 'status';
+    node_object_prepare($node);
+    $node->status = 0;
+    $node->promote = 0;
+    $node->sticky = 0;
+    
+    $node->title = 'email:' . $email_number;
+    $node->language = LANGUAGE_NONE;
+    $node->uid = 1;
+    $node->body[$node->language][0]['value'] = $body;
+    $node->body[$node->language][0]['summary'] = '';
+    $node->body[$node->language][0]['format'] = 'markdown';
+
+    // since node_submit will set $node->created by $node->date
+    $node->date = $created;
+
+    if ($node = node_submit($node)) {
+        node_save($node);
+        return true;
+    } else {
+        return false;
+    }
+}
+
+$inbox = imap_open($hostname, $username, $password) or die("Cannot connect to Gmail: " . imap_last_error());
+
+$emails = imap_search($inbox, 'ALL');
+
+if ($emails) {
+    $output = '';
+    rsort($emails);
+
+    foreach ($emails as $email_number) {
+        $uid = imap_uid($inbox, $email_number);
+        $header = imap_fetchheader($inbox, $email_number);
+        $overview = imap_fetch_overview($inbox, $email_number, 0);
+        $message = imap_fetchbody($inbox, $email_number, 2);
+
+        $output .= $email_number;
+        $output .= '<li>' . $overview[0]->subject . '</li>';
+        $output .= '<li>' . $overview[0]->date . '</li>';
+        $output .= '<li>' . $overview[0]->from . '</li>';
+
+    //$output .= "\n";
+    //echo $output;
+    print_r($overview);
+    print_r($header);
+    print_r($uid);
+
+    echo "\n\n";
+    }
+}
+
+imap_close($inbox);

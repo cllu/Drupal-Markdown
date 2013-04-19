@@ -10,23 +10,25 @@ chdir(DRUPAL_ROOT);
 require_once DRUPAL_ROOT . '/includes/bootstrap.inc';
 drupal_bootstrap(DRUPAL_BOOTSTRAP_FULL);
 
-function add_status($email_number, $created, $body) {
+function _node_save($node_type, $title, $body, $optional) {
     $node = new stdClass();
-    $node->type = 'status';
+    $node->type = $node_type;
     node_object_prepare($node);
     $node->status = 0;
     $node->promote = 0;
     $node->sticky = 0;
     
-    $node->title = 'email:' . $email_number;
+    $node->title = $title;
     $node->language = LANGUAGE_NONE;
     $node->uid = 1;
     $node->body[$node->language][0]['value'] = $body;
-    $node->body[$node->language][0]['summary'] = '';
+    $node->body[$node->language][0]['summary'] = text_summary($body);
     $node->body[$node->language][0]['format'] = 'markdown';
 
     // since node_submit will set $node->created by $node->date
-    $node->date = $created;
+    if (isset($optional['created'])) {
+        $node->date = $optional['created'];
+    }
 
     if ($node = node_submit($node)) {
         node_save($node);
@@ -36,33 +38,45 @@ function add_status($email_number, $created, $body) {
     }
 }
 
-$inbox = imap_open($hostname, $username, $password) or die("Cannot connect to Gmail: " . imap_last_error());
+function check_status_mailbox($hostname, $username, $password) {
 
-$emails = imap_search($inbox, 'ALL');
+    $statuses = array()
 
-if ($emails) {
-    $output = '';
-    rsort($emails);
+    $inbox = imap_open($hostname, $username, $password) or die("Cannot connect to Gmail: " . imap_last_error());
+    
+    $emails = imap_search($inbox, 'ALL');
+    
+    if ($emails) {
+        $output = '';
+        rsort($emails);
+    
+        foreach ($emails as $email_number) {
+            $uid = imap_uid($inbox, $email_number);
+            $header = imap_fetchheader($inbox, $email_number);
+            $overview = imap_fetch_overview($inbox, $email_number, 0);
+            $message = imap_fetchbody($inbox, $email_number, 2);
+    
+            $output .= $email_number;
+            $output .= '<li>' . $overview[0]->subject . '</li>';
+            $output .= '<li>' . $overview[0]->date . '</li>';
+            $output .= '<li>' . $overview[0]->from . '</li>';
+    
+            print_r($overview);
+            print_r($header);
+            print_r($uid);
+            $title = 'email:' . $uid;
+            echo "\n\n";
 
-    foreach ($emails as $email_number) {
-        $uid = imap_uid($inbox, $email_number);
-        $header = imap_fetchheader($inbox, $email_number);
-        $overview = imap_fetch_overview($inbox, $email_number, 0);
-        $message = imap_fetchbody($inbox, $email_number, 2);
+            $status = array(
+                'title' => 'email:' . $uid,
+                'body'  => message,
+                'created' => $overview->date
+            );
 
-        $output .= $email_number;
-        $output .= '<li>' . $overview[0]->subject . '</li>';
-        $output .= '<li>' . $overview[0]->date . '</li>';
-        $output .= '<li>' . $overview[0]->from . '</li>';
-
-    //$output .= "\n";
-    //echo $output;
-    print_r($overview);
-    print_r($header);
-    print_r($uid);
-
-    echo "\n\n";
+            $statuses[] = $status;
+        }
     }
-}
 
-imap_close($inbox);
+    imap_close($inbox);
+    return $statuses;
+}

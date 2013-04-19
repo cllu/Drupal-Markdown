@@ -200,3 +200,205 @@ function markdown_node_access($node, $op, $account) {
     return NODE_ACCESS_DENY;
 }
 */
+
+/**
+ *
+ */
+function markdown_menu() {
+    $items['cron/static'] = array(
+        'page callback' => 'generate_static_pages',
+        'access arguments' => array('administer content'), 
+    );
+    $item['cron/pull-status-mailbox'] = array(
+        'page callback' => 'pull_status_mailbox',
+        'access arguments' => array('administer content'), 
+    );
+    $items['node/%/edit/ajax'] = array(
+        'page callback' => '_node_form_ajax',
+        'page arguments' => array(1),
+        'access arguments' => array('administer content'), 
+        'type' => MENU_CALLBACK
+    );
+    return $items;
+}
+
+/**
+ * just return the node edit form
+ */
+function _node_form_ajax($nid_or_type) {
+    module_load_include('inc', 'node', 'node.pages');
+    if (is_numeric($nid_or_type)) {
+        $node = node_load($nid_or_type);
+    } else {
+        global $user;
+        $node = new stdClass();
+        $node->uid = $user->uid;
+        $node->name = $user->name;
+        $node->type = $nid_or_type;
+        node_object_prepare($node);
+    }
+
+    echo drupal_render(drupal_get_form($node->type."_node_form", $node));
+    drupal_exit();
+}
+
+function generate_static_pages() {
+
+    $static_root = '/var/www/chunliang.me/static';
+    $base_url = 'http://chunliang.me';
+    
+    // in the form of `node/1`
+    $site_frontpage = variable_get('site_frontpage', 'node');
+    
+    $query = new EntityFieldQuery;
+    $entities = $query->entityCondition('entity_type', 'node')
+                      ->propertyCondition('status', 1);
+    
+    $result = $query->execute();
+    
+    $options = array('absolute' => TRUE,
+                     'https' => FALSE,
+                     'base_url' => $base_url);
+    
+    $folder = $static_root;
+    $files = glob($folder . '/*');
+    foreach ($files as $file) {
+        if (is_file($file)) {
+            unlink($file);
+        }
+    }
+    
+    if (isset($result['node'])) {
+        $nids = array_keys($result['node']);
+        $nodes = node_load_multiple($nids);
+    
+        foreach ($nodes as $node) {
+            // filter out private contents
+            //if (!property_exists($node, 'private') || $node->private == 1) continue;
+    
+            $url = 'node/'.$node->nid;
+            if ($url == $site_frontpage) {
+                $full_url = $base_url . '/';
+            } else {
+                $full_url = url($url, $options);
+            }
+            
+            $content = drupal_render(node_view($node));
+            $page = array(
+                'content' => $content,
+                '#type' => 'page',
+                '#show_messages' => TRUE
+            );
+            $html = drupal_render($page);
+    
+    
+            $path = $folder . substr($full_url, strlen($base_url)) . '/';
+            if (!is_dir($path) && !mkdir($path, 0777, true)) {
+                die('Failed to create folders ' . $path);
+            }
+            $file = $path . 'index.html';
+            //print $path. "\n";
+            file_put_contents($file, $html);
+        }
+    }
+
+    $output = '';
+    print '<pre>';
+    passthru('tree ' . $static_root);
+    print '</pre>';
+    
+    drupal_exit();
+}
+
+function pull_status_mailbox() {
+    $hostname = '{imap.gmail.com:993/imap/ssl}INBOX';
+    $username = 'status@chunliang.me';
+    $password = '%E9V7md3';
+
+    $statuses = fetch_status_mailbox($hostname, $username, $password);
+    $count = 0;
+    foreach ($statuses as $status) {
+        if (_node_save('status', $status['title'], $status['body'], $status)) {
+            $count += 1;
+        }
+    }
+    if ($count == count($statuses)) {
+        echo "successfully imported statuses: " . $count;
+        drupal_exit();
+    } else {
+        echo "error happens";
+        drupal_exit();
+    }
+}
+
+
+function _node_save($node_type, $title, $body, $optional) {
+    $node = new stdClass();
+    $node->type = $node_type;
+    node_object_prepare($node);
+    $node->status = 0;
+    $node->promote = 0;
+    $node->sticky = 0;
+
+    $node->title = $title;
+    $node->language = LANGUAGE_NONE;
+    $node->uid = 1;
+    $node->body[$node->language][0]['value'] = $body;
+    $node->body[$node->language][0]['summary'] = text_summary($body);
+    $node->body[$node->language][0]['format'] = 'markdown';
+
+    // since node_submit will set $node->created by $node->date
+    if (isset($optional['created'])) {
+        $node->date = $optional['created'];
+    }
+
+    if ($node = node_submit($node)) {
+        node_save($node);
+        return true;
+    } else {
+        return false;
+    }
+}
+
+function fetch_status_mailbox($hostname, $username, $password) {
+
+    $statuses = array();
+
+    $inbox = imap_open($hostname, $username, $password) or die("Cannot connect to Gmail: " . imap_last_error());
+
+    $emails = imap_search($inbox, 'ALL');
+
+    if ($emails) {
+        $output = '';
+        rsort($emails);
+
+        foreach ($emails as $email_number) {
+            $uid = imap_uid($inbox, $email_number);
+            $header = imap_fetchheader($inbox, $email_number);
+            $overview = imap_fetch_overview($inbox, $email_number, 0);
+            $message = imap_fetchbody($inbox, $email_number, 2);
+
+            $output .= $email_number;
+            $output .= '<li>' . $overview[0]->subject . '</li>';
+            $output .= '<li>' . $overview[0]->date . '</li>';
+            $output .= '<li>' . $overview[0]->from . '</li>';
+
+            print_r($overview);
+            print_r($header);
+            print_r($uid);
+            $title = 'email:' . $uid;
+            echo "\n\n";
+
+            $status = array(
+                    'title' => 'email:' . $uid,
+                    'body'  => message,
+                    'created' => $overview->date
+                    );
+
+            $statuses[] = $status;
+        }
+    }
+
+    imap_close($inbox);
+    return $statuses;
+}

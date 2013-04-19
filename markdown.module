@@ -287,9 +287,11 @@ function generate_static_pages() {
             $page = array(
                 'content' => $content,
                 '#type' => 'page',
-                '#show_messages' => TRUE
+                '#show_messages' => FALSE
             );
+            variable_set('static_page', true);
             $html = drupal_render($page);
+            variable_del('static_page');
     
     
             $path = $folder . substr($full_url, strlen($base_url)) . '/';

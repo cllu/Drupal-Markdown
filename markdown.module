@@ -219,7 +219,34 @@ function markdown_menu() {
         'access arguments' => array('administer content'), 
         'type' => MENU_CALLBACK
     );
+    $items['node/add/%/ajax'] = array(
+        'page callback' => '_node_add_ajax',
+        'page arguments' => array(2),
+        'access arguments' => array('administer content'), 
+        'type' => MENU_CALLBACK
+    );
     return $items;
+}
+
+function _node_add_ajax($node_type) {
+    if (!isset($_POST['submit']) || !isset($_POST['body'])) {
+        echo "no data";
+        print_r($_POST);
+        drupal_exit();
+    }
+    // have not consider other node type
+    if ($node_type != 'status') {
+        echo "not status!";
+        drupal_exit();
+    }
+    $title = 'status';
+    $body = $_POST['body'];
+    if (_node_save($node_type, $title, $body)) {
+        echo "suceed!";
+    } else {
+        echo "error when saving";    
+    }
+    drupal_exit();
 }
 
 /**
@@ -334,7 +361,7 @@ function pull_status_mailbox() {
 }
 
 
-function _node_save($node_type, $title, $body, $optional) {
+function _node_save($node_type, $title, $body, $optional = array()) {
     $node = new stdClass();
     $node->type = $node_type;
     node_object_prepare($node);

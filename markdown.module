@@ -305,7 +305,7 @@ function generate_static_pages() {
     
             $url = 'node/'.$node->nid;
             if ($url == $site_frontpage) {
-                $full_url = $base_url . '/';
+                $full_url = $base_url . '/index';
             } else {
                 $full_url = url($url, $options);
             }
@@ -321,13 +321,15 @@ function generate_static_pages() {
             variable_del('static_page');
     
     
-            $path = $folder . substr($full_url, strlen($base_url)) . '/';
-            if (!is_dir($path) && !mkdir($path, 0777, true)) {
+            // somthing like blog.html
+            $path = $folder . substr($full_url, strlen($base_url)) . '.html';
+            $dir = dirname($path);
+            if (!is_dir($dir) && !mkdir($dir, 0777, true)) {
                 die('Failed to create folders ' . $path);
             }
-            $file = $path . 'index.html';
+            //$file = $path . 'index.html';
             //print $path. "\n";
-            file_put_contents($file, $html);
+            file_put_contents($path, $html);
         }
     }
 

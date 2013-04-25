@@ -375,7 +375,7 @@ function _node_save($node_type, $title, $body, $optional = array()) {
     $node->language = LANGUAGE_NONE;
     $node->uid = 1;
     $node->body[$node->language][0]['value'] = $body;
-    $node->body[$node->language][0]['summary'] = text_summary($body);
+    //$node->body[$node->language][0]['summary'] = text_summary($body);
     $node->body[$node->language][0]['format'] = 'markdown';
 
     // since node_submit will set $node->created by $node->date

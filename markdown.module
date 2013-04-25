@@ -1,6 +1,4 @@
 <?php
-use \Michelf\MarkdownExtra;
-
 /**
  * @file
  * Provides a Markdown input filter.
@@ -114,10 +112,9 @@ And now some code:
  */
 function _filter_markdown($text, $format) {
   if (!empty($text)) {
-    module_load_include('php', 'markdown', 'Michelf/Markdown');
-    module_load_include('php', 'markdown', 'Michelf/MarkdownExtra');
-    module_load_include('php', 'markdown', 'smartypants');
-    module_load_include('php', 'markdown', 'Flickr');
+    module_load_include('php', 'markdown', 'lib/Markdown');
+    module_load_include('php', 'markdown', 'lib/smartypants');
+    module_load_include('php', 'markdown', 'lib/Flickr');
 
     // yaml header
     if (preg_match("/^---(?P<yaml>(.|\n)*)---/", $text, $matches) == 1) {
@@ -192,7 +189,7 @@ function markdown_node_load($nodes, $types) {
 
 function markdown_node_access($node, $op, $account) {
     $type = is_string($node) ? $node : $node->type;
-    
+
     if (in_array($type, array('blog', 'quote', 'favorite')) && !$node->private) {
         return NODE_ACCESS_ALLOW;
     }
@@ -207,22 +204,22 @@ function markdown_node_access($node, $op, $account) {
 function markdown_menu() {
     $items['cron/static'] = array(
         'page callback' => 'generate_static_pages',
-        'access arguments' => array('administer content'), 
+        'access arguments' => array('administer content'),
     );
     $item['cron/pull-status-mailbox'] = array(
         'page callback' => 'pull_status_mailbox',
-        'access arguments' => array('administer content'), 
+        'access arguments' => array('administer content'),
     );
     $items['node/%/edit/ajax'] = array(
         'page callback' => '_node_form_ajax',
         'page arguments' => array(1),
-        'access arguments' => array('administer content'), 
+        'access arguments' => array('administer content'),
         'type' => MENU_CALLBACK
     );
     $items['node/add/%/ajax'] = array(
         'page callback' => '_node_add_ajax',
         'page arguments' => array(2),
-        'access arguments' => array('administer content'), 
+        'access arguments' => array('administer content'),
         'type' => MENU_CALLBACK
     );
     return $items;
@@ -244,7 +241,7 @@ function _node_add_ajax($node_type) {
     if (_node_save($node_type, $title, $body)) {
         echo "suceed!";
     } else {
-        echo "error when saving";    
+        echo "error when saving";
     }
     drupal_exit();
 }
@@ -273,20 +270,20 @@ function generate_static_pages() {
 
     $static_root = '/var/www/chunliang.me/static';
     $base_url = 'http://chunliang.me';
-    
+
     // in the form of `node/1`
     $site_frontpage = variable_get('site_frontpage', 'node');
-    
+
     $query = new EntityFieldQuery;
     $entities = $query->entityCondition('entity_type', 'node')
                       ->propertyCondition('status', 1);
-    
+
     $result = $query->execute();
-    
+
     $options = array('absolute' => TRUE,
                      'https' => FALSE,
                      'base_url' => $base_url);
-    
+
     $folder = $static_root;
     $files = glob($folder . '/*');
     foreach ($files as $file) {
@@ -294,22 +291,22 @@ function generate_static_pages() {
             unlink($file);
         }
     }
-    
+
     if (isset($result['node'])) {
         $nids = array_keys($result['node']);
         $nodes = node_load_multiple($nids);
-    
+
         foreach ($nodes as $node) {
             // filter out private contents
             //if (!property_exists($node, 'private') || $node->private == 1) continue;
-    
+
             $url = 'node/'.$node->nid;
             if ($url == $site_frontpage) {
                 $full_url = $base_url . '/index';
             } else {
                 $full_url = url($url, $options);
             }
-            
+
             $content = drupal_render(node_view($node));
             $page = array(
                 'content' => $content,
@@ -319,8 +316,8 @@ function generate_static_pages() {
             variable_set('static_page', true);
             $html = drupal_render($page);
             variable_del('static_page');
-    
-    
+
+
             // somthing like blog.html
             $path = $folder . substr($full_url, strlen($base_url)) . '.html';
             $dir = dirname($path);
@@ -337,7 +334,7 @@ function generate_static_pages() {
     print '<pre>';
     passthru('tree ' . $static_root);
     print '</pre>';
-    
+
     drupal_exit();
 }
 

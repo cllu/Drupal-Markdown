@@ -48,32 +48,6 @@ function _filter_markdown_tips($format, $long = FALSE) {
   }
 }
 
-/**
- * Implements hook_block_view().
- */
-function markdown_block_view($delta = '') {
-  $block = array();
-  switch ($delta) {
-    case 'markdown_help':
-      $block['title'] = t('Markdown filter tips');
-      $block['content'] = _markdown_help_block();
-      break;
-  }
-
-  return $block;
-}
-
-/**
- * Implements hook_block_info().
- */
-function markdown_block_info() {
-  $blocks = array();
-  $blocks['markdown_help'] = array(
-    'info' => t('Markdown filter tips'),
-  );
-
-  return $blocks;
-}
 
 /**
  * Provides content for the markdown help block.
@@ -113,8 +87,7 @@ And now some code:
 function _filter_markdown($text, $format) {
   if (!empty($text)) {
     module_load_include('php', 'markdown', 'lib/Markdown');
-    module_load_include('php', 'markdown', 'lib/smartypants');
-    module_load_include('php', 'markdown', 'lib/Flickr');
+    module_load_include('php', 'markdown', 'lib/Smartypants');
 
     // yaml header
     if (preg_match("/^---(?P<yaml>(.|\n)*)---/", $text, $matches) == 1) {
@@ -123,12 +96,13 @@ function _filter_markdown($text, $format) {
     }
     // replace flickr image url
     //$text = preg_replace('/   /', '', $text);
-    $flickr = new Flickr();
+    //$flickr = new Flickr();
     preg_match_all('/\{\{flickr:(?P<photo_id>\d+)(\|(?P<size>\w+))?\}\}/', $text, $matches, PREG_SET_ORDER);
     foreach ($matches as $match) {
-        $photo_url = $flickr->get_photo_url($match['photo_id'], $match['size']);
+        $photo_url = get_flickr_photo_url($match['photo_id'], $match['size']);
         $text = str_replace($match[0], $photo_url, $text);
     }
+
     // markdown
     $text = MarkdownExtra::defaultTransform($text);
     $text = SmartyPants($text);
@@ -429,4 +403,34 @@ function fetch_status_mailbox($hostname, $username, $password) {
 
     imap_close($inbox);
     return $statuses;
+}
+
+function get_flickr_token() {
+  module_load_include('php', 'markdown', 'lib/Flickr');
+  $f = new phpFlickr("4231c9fc6d682d17c618091def128f87", "f15dfdb9e761282c");
+
+  //change this to the permissions you will need
+  if (empty($_GET['frob'])) {
+    $f->auth("write", false);
+  } else {
+    $token = $f->auth_getToken($_GET['frob']);
+    echo "use this token to authenticate: ". $token['token'];
+  }
+}
+
+function get_flickr_photo_url($photo_id, $size='m') {
+  module_load_include('php', 'markdown', 'lib/Flickr');
+  $api_key = '4231c9fc6d682d17c618091def128f87';
+  $api_secret = 'f15dfdb9e761282c';
+  $api_token = '72157633245931161-c47f26f9fc81772a';
+  $flickr = null;
+
+  $flickr = new phpFlickr($api_key, $api_secret);
+  $flickr->setToken($api_token);
+
+  if ($photo = $flickr->photos_getInfo($photo_id)) {
+    return $flickr->buildPhotoURL($photo, $size);
+  } else {
+    return False;
+  }
 }

@@ -1,47 +1,10 @@
 <?php
 /* phpFlickr Class 2.3.1.1
  * Written by Dan Coulter (dan@dancoulter.com)
- * Project Home Page: http://phpflickr.com/
- * Released under GNU Lesser General Public License (http://www.gnu.org/copyleft/lgpl.html)
+ * Rewritten by Chunliang Lyu.
  */
 
 require_once 'HTTPRequest.php';
-
-// get auth code or get photourl
-if (isset($_GET['auth']) || isset($_GET['frob'])) {
-  getToken();
-} elseif (isset($_GET['photo_id'])) {
-  print get_photo_url($_GET['photo_id']);
-}
-
-function getToken() {
-  $f = new phpFlickr("4231c9fc6d682d17c618091def128f87", "f15dfdb9e761282c");
-    
-  //change this to the permissions you will need
-  if (empty($_GET['frob'])) {
-    $f->auth("write", false);
-  } else {
-    $token = $f->auth_getToken($_GET['frob']);
-    echo "use this token to authenticate: ". $token['token'];
-  }
-}
-
-function get_photo_url($photo_id, $size='m') {
-  $api_key = '4231c9fc6d682d17c618091def128f87';
-  $api_secret = 'f15dfdb9e761282c';
-  $api_token = '72157633245931161-c47f26f9fc81772a';
-  $flickr = null;
-
-  $flickr = new phpFlickr($api_key, $api_secret);
-  $flickr->setToken($api_token);
-
-  if ($photo = $flickr->photos_getInfo($photo_id)) {
-    return $flickr->buildPhotoURL($photo, $size);
-  } else {
-    return False;
-  }
-}
- 
 
 class phpFlickr {
   var $api_key;

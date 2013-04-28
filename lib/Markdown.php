@@ -100,6 +100,7 @@ class Markdown {
 	# Internal hashes used during transformation.
 	var $urls = array();
 	var $titles = array();
+	var $refs = array();
 	var $html_hashes = array();
 
 	# Status flag to avoid invalid nesting.
@@ -172,6 +173,7 @@ class Markdown {
 	var $document_gamut = array(
 		# Strip link definitions, store in hashes.
 		"stripLinkDefinitions" => 20,
+		"stripRefDefinitions"  => 25,
 
 		"runBasicBlockGamut"   => 30,
 		);
@@ -217,6 +219,21 @@ class Markdown {
 		$this->urls[$link_id] = $url;
 		$this->titles[$link_id] =& $matches[4];
 		return ''; # String that will replace the block
+	}
+
+	function stripRefDefinitions($text) {
+		$text = preg_replace_callback('{
+							\{(.+)\}: # id = $1
+			}xm',
+			array(&$this, '_stripRefDefinitions_callback'),
+			$text);
+		return $text;
+	}
+
+	function _stripRefDefinitions_callback($matches) {
+		$ref_id = strtolower($matches[1]);
+		$this->refs[] = $ref_id;
+		return "<a name=\"ref-$ref_id\"></a>";
 	}
 
 
@@ -472,6 +489,7 @@ class Markdown {
 		# because ![foo][f] looks like an anchor.
 		"doImages"            =>  10,
 		"doAnchors"           =>  20,
+		"doRefs"			  =>  25,
 
 		# Make links out of things like `<http://example.com/>`
 		# Must come after doAnchors, because you can use < and >
@@ -504,6 +522,42 @@ class Markdown {
 		return $this->hashPart("<br$this->empty_element_suffix\n");
 	}
 
+	function doRefs($text) {
+		$text = preg_replace_callback('{
+				\{
+					([^\}]*)
+				\}[^:]
+			}xs',
+			array(&$this, '_doRefs_reference_callback'),
+			$text);
+		return $text;
+	}
+
+	function _doRefs_reference_callback($matches) {
+		$whole_match = $matches[0];
+		$ref_ids = explode(";", $matches[1]);
+		$found = false;
+		$result = '[';
+		for ($i = 0; $i < count($ref_ids); ++$i) {
+			$ref_id = strtolower(trim($ref_ids[$i]));
+			if (in_array($ref_id, $this->refs)) {
+				$ref_num = array_search($ref_id, $this->refs) + 1;
+				$result .= "<a href=\"#ref-$ref_id\">$ref_num</a>";
+				$found = true;
+			} else {
+				$result .= $ref_id;
+			}
+			if ($i != count($ref_ids) - 1) {
+				$result .= ',';
+			}
+		}
+		$result .= ']';
+
+		if (!$found) {
+			return $whole_match;
+		}
+		return $this->hashPart($result);
+	}
 
 	function doAnchors($text) {
 	#
@@ -571,6 +625,7 @@ class Markdown {
 			)
 			}xs',
 			array(&$this, '_doAnchors_reference_callback'), $text);
+
 
 		$this->in_anchor = false;
 		return $text;

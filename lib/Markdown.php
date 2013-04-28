@@ -223,7 +223,7 @@ class Markdown {
 
 	function stripRefDefinitions($text) {
 		$text = preg_replace_callback('{
-							\{(.+)\}: # id = $1
+							\((.+)\): # id = $1
 			}xm',
 			array(&$this, '_stripRefDefinitions_callback'),
 			$text);
@@ -232,6 +232,8 @@ class Markdown {
 
 	function _stripRefDefinitions_callback($matches) {
 		$ref_id = strtolower($matches[1]);
+		# remove non-alphabet characters.
+		$ref_id = preg_replace("/[^A-Za-z0-9]/", '', $ref_id);
 		$this->refs[] = $ref_id;
 		return "<a name=\"ref-$ref_id\"></a>";
 	}
@@ -524,9 +526,9 @@ class Markdown {
 
 	function doRefs($text) {
 		$text = preg_replace_callback('{
-				\{
+				\(
 					([^\}]*)
-				\}[^:]
+				\)[^:]
 			}xs',
 			array(&$this, '_doRefs_reference_callback'),
 			$text);
@@ -540,6 +542,7 @@ class Markdown {
 		$result = '[';
 		for ($i = 0; $i < count($ref_ids); ++$i) {
 			$ref_id = strtolower(trim($ref_ids[$i]));
+			$ref_id = preg_replace("/[^A-Za-z0-9]/", '', $ref_id);
 			if (in_array($ref_id, $this->refs)) {
 				$ref_num = array_search($ref_id, $this->refs) + 1;
 				$result .= "<a href=\"#ref-$ref_id\">$ref_num</a>";

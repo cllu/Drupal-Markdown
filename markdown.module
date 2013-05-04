@@ -176,6 +176,11 @@ function markdown_node_access($node, $op, $account) {
  *
  */
 function markdown_menu() {
+    $items['status'] = array(
+        'title' => 'Status',
+        'page callback' => 'status_page',
+        'access arguments' => array('administer content'),
+    );
     $items['cron/static'] = array(
         'page callback' => 'generate_static_pages',
         'access arguments' => array('administer content'),
@@ -199,8 +204,33 @@ function markdown_menu() {
     return $items;
 }
 
+function status_page() {
+
+    $query = new EntityFieldQuery;
+    $entities = $query->entityCondition('entity_type', 'node')
+        ->entityCondition('bundle', 'status')
+        ->propertyOrderBy('created', 'DESC')
+        ->pager(10);
+
+    $result = $query->execute();
+
+    if (isset($result['node'])) {
+        $nids = array_keys($result['node']);
+        $nodes = node_load_multiple($nids);
+        $content = drupal_render(node_view_multiple($nodes, 'full'));
+        return $content;
+        $page = array('content' => $content,
+                      '#type' => 'page'
+                      );
+        return drupal_render($page);
+        
+        } else {
+        return "No status found";     
+    }
+}
+
 function _node_add_ajax($node_type) {
-    if (!isset($_POST['submit']) || !isset($_POST['body'])) {
+    if (!isset($_POST['submit']) || !isset($_POST['body']) || $_POST['body'] == '') {
         echo "no data";
         print_r($_POST);
         drupal_exit();
@@ -212,8 +242,9 @@ function _node_add_ajax($node_type) {
     }
     $title = 'status';
     $body = $_POST['body'];
-    if (_node_save($node_type, $title, $body)) {
-        echo "suceed!";
+    if ($node = _node_save($node_type, $title, $body)) {
+        //echo drupal_render(node_view($node));
+        drupal_goto('status');
     } else {
         echo "error when saving";
     }
@@ -349,7 +380,7 @@ function _node_save($node_type, $title, $body, $optional = array()) {
 
     if ($node = node_submit($node)) {
         node_save($node);
-        return true;
+        return $node;
     } else {
         return false;
     }
